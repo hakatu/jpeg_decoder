@@ -20,6 +20,9 @@ It does not support (currently);
 # Build
 make
 
+# Build with fast inverse discrete cosine transform
+make IDCT=IFAST
+
 # Run
 ./jpeg my_image.jpg bitmap.ppm
 ```
