@@ -14,6 +14,10 @@ CFLAGS     += -Wno-format
 INCLUDE_PATH += $(SRC_DIR)
 CFLAGS       += $(patsubst %,-I%,$(INCLUDE_PATH))
 
+ifeq ($(IDCT),IFAST)
+CFLAGS       += -DIDCT_IFAST=1
+endif
+
 LDFLAGS     = 
 LIBS        = 
 

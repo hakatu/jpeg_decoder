@@ -8,12 +8,17 @@
 #include "jpeg_dqt.h"
 #include "jpeg_dht.h"
 #include "jpeg_idct.h"
+#include "jpeg_idct_ifast.h"
 #include "jpeg_bit_buffer.h"
 #include "jpeg_mcu_block.h"
 
 static jpeg_dqt        m_dqt;
 static jpeg_dht        m_dht;
+#if defined(IDCT_IFAST)
+static jpeg_idct_ifast m_idct;
+#else
 static jpeg_idct       m_idct;
+#endif
 static jpeg_bit_buffer m_bit_buffer;
 static jpeg_mcu_block  m_mcu_dec(&m_bit_buffer, &m_dht);
 
