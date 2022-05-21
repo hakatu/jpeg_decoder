@@ -1,6 +1,6 @@
 # High throughput JPEG decoder
 
-Github: [https://github.com/ultraembedded/core_jpeg](https://github.com/ultraembedded/core_jpeg)
+This project is forked from [https://github.com/ultraembedded/core_jpeg](https://github.com/ultraembedded/core_jpeg)
 
 This project is a JPEG decoder core for FPGA written in Verilog.
 
@@ -61,3 +61,11 @@ This functionality increases the core size substantially and reduces performance
 * Add support for the first layer of progressive JPEG images.
 * Add option to reduce arithmetic precision to reduce design size.
 * Add lightweight variant of the core with reduced performance (for smaller FPGAs).
+
+## Fast Inverse Discrete Cosine Transform
+This implementation is based on Chen-Wang algorithm for DCT. The original paper (Trans. IEEE ASSP-32, pp. 803-816, Aug. 1984) published a fast
+one-dimensional DCT (1-D DCT) algorithm. This proposal need 11 multiplications and 29 additions to complete an 8point DCT.
+
+![Fast IDCT](docs/fast_idct.png)
+
+Thanks to this algorithm, the new implementation reduces the number of multipliers from 10 to 4.
