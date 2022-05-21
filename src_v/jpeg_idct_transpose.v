@@ -30,6 +30,15 @@
 //-----------------------------------------------------------------
 
 module jpeg_idct_transpose
+//-----------------------------------------------------------------
+// Params
+//-----------------------------------------------------------------
+#(
+     parameter USE_IDCT_IFAST = 0
+)
+//-----------------------------------------------------------------
+// Ports
+//-----------------------------------------------------------------
 (
     // Inputs
      input           clk_i
@@ -232,26 +241,54 @@ else if (img_start_i)
 else if (state_q == STATE_ACTIVE)
     rd_idx_q <= rd_idx_q + 6'd1;
 
-always @ (posedge clk_i )
-if (rst_i)
-    rd_addr_q <= 4'b0;
-else if (state_q == STATE_IDLE)
-    rd_addr_q <= 4'b0;
-else if (state_q == STATE_SETUP)
-    rd_addr_q <= 4'd8;
-else if (state_q == STATE_ACTIVE)
-begin
-    case (rd_idx_q[2:0])
-    3'd0: rd_addr_q <= rd_addr_q - 4'd8;
-    3'd1: rd_addr_q <= rd_addr_q + 4'd8;
-    3'd2: ;
-    3'd3: rd_addr_q <= rd_addr_q - 4'd8;
-    3'd4: rd_addr_q <= rd_addr_q + 4'd8;
-    3'd5: rd_addr_q <= rd_addr_q - 4'd8;
-    3'd6: rd_addr_q <= rd_addr_q + 4'd1;
-    3'd7: rd_addr_q <= rd_addr_q + 4'd8;
-    endcase
-end
+generate
+    if (USE_IDCT_IFAST)
+    begin
+        always @ (posedge clk_i )
+        if (rst_i)
+            rd_addr_q <= 4'b0;
+        else if (state_q == STATE_IDLE)
+            rd_addr_q <= 4'b0;
+        else if (state_q == STATE_SETUP)
+            rd_addr_q <= 4'd8;
+        else if (state_q == STATE_ACTIVE)
+        begin
+            case (rd_idx_q[2:0])
+            3'd0: ;
+            3'd1: ;
+            3'd2: rd_addr_q <= rd_addr_q - 4'd8;
+            3'd3: rd_addr_q <= rd_addr_q + 4'd8;
+            3'd4: rd_addr_q <= rd_addr_q - 4'd8;
+            3'd5: ;
+            3'd6: rd_addr_q <= rd_addr_q + 4'd1;
+            3'd7: rd_addr_q <= rd_addr_q + 4'd8;
+            endcase
+        end
+    end
+    else
+    begin
+        always @ (posedge clk_i )
+        if (rst_i)
+            rd_addr_q <= 4'b0;
+        else if (state_q == STATE_IDLE)
+            rd_addr_q <= 4'b0;
+        else if (state_q == STATE_SETUP)
+            rd_addr_q <= 4'd8;
+        else if (state_q == STATE_ACTIVE)
+        begin
+            case (rd_idx_q[2:0])
+            3'd0: rd_addr_q <= rd_addr_q - 4'd8;
+            3'd1: rd_addr_q <= rd_addr_q + 4'd8;
+            3'd2: ;
+            3'd3: rd_addr_q <= rd_addr_q - 4'd8;
+            3'd4: rd_addr_q <= rd_addr_q + 4'd8;
+            3'd5: rd_addr_q <= rd_addr_q - 4'd8;
+            3'd6: rd_addr_q <= rd_addr_q + 4'd1;
+            3'd7: rd_addr_q <= rd_addr_q + 4'd8;
+            endcase
+        end
+    end
+endgenerate
 
 assign outport_valid_o = (state_q == STATE_ACTIVE);
 assign outport_idx_o   = rd_idx_q[2:0];
@@ -259,6 +296,5 @@ assign outport_data0_o = outport_data0_w;
 assign outport_data1_o = outport_data1_w;
 assign outport_data2_o = outport_data2_w;
 assign outport_data3_o = outport_data3_w;
-
 
 endmodule

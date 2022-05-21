@@ -30,6 +30,15 @@
 //-----------------------------------------------------------------
 
 module jpeg_idct
+//-----------------------------------------------------------------
+// Params
+//-----------------------------------------------------------------
+#(
+     parameter USE_IDCT_IFAST = 0
+)
+//-----------------------------------------------------------------
+// Ports
+//-----------------------------------------------------------------
 (
     // Inputs
      input           clk_i
@@ -64,6 +73,9 @@ wire          input_ready_w;
 
 
 jpeg_idct_ram
+#(
+    .USE_IDCT_IFAST(USE_IDCT_IFAST)
+)
 u_input
 (
      .clk_i(clk_i)
@@ -92,26 +104,50 @@ wire [ 31:0]  idct_x_data_w;
 wire [  5:0]  idct_x_idx_w;
 wire          idct_x_accept_w;
 
-jpeg_idct_x
-u_idct_x
-(
-     .clk_i(clk_i)
-    ,.rst_i(rst_i)
+generate
+    if (USE_IDCT_IFAST)
+        jpeg_idct_ifast_x
+        u_idct_ifast_x
+        (
+            .clk_i(clk_i)
+            ,.rst_i(rst_i)
 
-    ,.img_start_i(img_start_i)
-    ,.img_end_i(img_end_i)
+            ,.img_start_i(img_start_i)
+            ,.img_end_i(img_end_i)
 
-    ,.inport_valid_i(input_valid_w)
-    ,.inport_data0_i(input_data0_w)
-    ,.inport_data1_i(input_data1_w)
-    ,.inport_data2_i(input_data2_w)
-    ,.inport_data3_i(input_data3_w)
-    ,.inport_idx_i(input_idx_w)
+            ,.inport_valid_i(input_valid_w)
+            ,.inport_data0_i(input_data0_w)
+            ,.inport_data1_i(input_data1_w)
+            ,.inport_data2_i(input_data2_w)
+            ,.inport_data3_i(input_data3_w)
+            ,.inport_idx_i(input_idx_w)
 
-    ,.outport_valid_o(idct_x_valid_w)
-    ,.outport_data_o(idct_x_data_w)
-    ,.outport_idx_o(idct_x_idx_w)
-);
+            ,.outport_valid_o(idct_x_valid_w)
+            ,.outport_data_o(idct_x_data_w)
+            ,.outport_idx_o(idct_x_idx_w)
+        );
+    else
+        jpeg_idct_x
+        u_idct_x
+        (
+            .clk_i(clk_i)
+            ,.rst_i(rst_i)
+
+            ,.img_start_i(img_start_i)
+            ,.img_end_i(img_end_i)
+
+            ,.inport_valid_i(input_valid_w)
+            ,.inport_data0_i(input_data0_w)
+            ,.inport_data1_i(input_data1_w)
+            ,.inport_data2_i(input_data2_w)
+            ,.inport_data3_i(input_data3_w)
+            ,.inport_idx_i(input_idx_w)
+
+            ,.outport_valid_o(idct_x_valid_w)
+            ,.outport_data_o(idct_x_data_w)
+            ,.outport_idx_o(idct_x_idx_w)
+        );
+endgenerate
 
 wire          transpose_valid_w;
 wire [ 31:0]  transpose_data0_w;
@@ -122,6 +158,9 @@ wire [  2:0]  transpose_idx_w;
 wire          transpose_ready_w = 1'b1;
 
 jpeg_idct_transpose
+#(
+    .USE_IDCT_IFAST(USE_IDCT_IFAST)
+)
 u_transpose
 (
      .clk_i(clk_i)
@@ -144,27 +183,50 @@ u_transpose
     ,.outport_ready_i(transpose_ready_w)
 );
 
-jpeg_idct_y
-u_idct_y
-(
-     .clk_i(clk_i)
-    ,.rst_i(rst_i)
+generate
+    if (USE_IDCT_IFAST)
+        jpeg_idct_ifast_y
+        u_idct_ifast_y
+        (
+            .clk_i(clk_i)
+            ,.rst_i(rst_i)
 
-    ,.img_start_i(img_start_i)
-    ,.img_end_i(img_end_i)
+            ,.img_start_i(img_start_i)
+            ,.img_end_i(img_end_i)
 
-    ,.inport_valid_i(transpose_valid_w)
-    ,.inport_data0_i(transpose_data0_w)
-    ,.inport_data1_i(transpose_data1_w)
-    ,.inport_data2_i(transpose_data2_w)
-    ,.inport_data3_i(transpose_data3_w)
-    ,.inport_idx_i(transpose_idx_w)
+            ,.inport_valid_i(transpose_valid_w)
+            ,.inport_data0_i(transpose_data0_w)
+            ,.inport_data1_i(transpose_data1_w)
+            ,.inport_data2_i(transpose_data2_w)
+            ,.inport_data3_i(transpose_data3_w)
+            ,.inport_idx_i(transpose_idx_w)
 
-    ,.outport_valid_o(outport_valid_o)
-    ,.outport_data_o(outport_data_o)
-    ,.outport_idx_o(outport_idx_o)
-);
+            ,.outport_valid_o(outport_valid_o)
+            ,.outport_data_o(outport_data_o)
+            ,.outport_idx_o(outport_idx_o)
+        );
+    else
+        jpeg_idct_y
+        u_idct_y
+        (
+            .clk_i(clk_i)
+            ,.rst_i(rst_i)
 
+            ,.img_start_i(img_start_i)
+            ,.img_end_i(img_end_i)
+
+            ,.inport_valid_i(transpose_valid_w)
+            ,.inport_data0_i(transpose_data0_w)
+            ,.inport_data1_i(transpose_data1_w)
+            ,.inport_data2_i(transpose_data2_w)
+            ,.inport_data3_i(transpose_data3_w)
+            ,.inport_idx_i(transpose_idx_w)
+
+            ,.outport_valid_o(outport_valid_o)
+            ,.outport_data_o(outport_data_o)
+            ,.outport_idx_o(outport_idx_o)
+        );
+endgenerate
 
 jpeg_idct_fifo
 #(

@@ -34,7 +34,8 @@ module jpeg_core
 // Params
 //-----------------------------------------------------------------
 #(
-     parameter SUPPORT_WRITABLE_DHT = 0
+     parameter SUPPORT_WRITABLE_DHT = 0,
+     parameter USE_IDCT_IFAST = 1
 )
 //-----------------------------------------------------------------
 // Ports
@@ -172,6 +173,9 @@ u_jpeg_dht
 
 
 jpeg_idct
+#(
+    .USE_IDCT_IFAST(USE_IDCT_IFAST)
+)
 u_jpeg_idct
 (
     // Inputs
