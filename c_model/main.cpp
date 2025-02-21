@@ -120,6 +120,7 @@ static void ConvertYUV2RGB(int block_num, int *y, int *cb, int *cr)
 //-----------------------------------------------------------------------------
 // DecodeImage: Decode image data section (supports 4:4:4, 4:2:0, monochrom)
 //-----------------------------------------------------------------------------
+
 static bool DecodeImage(void)
 {
     int16_t dc_coeff_Y = 0;

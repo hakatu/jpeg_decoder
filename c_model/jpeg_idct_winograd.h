@@ -15,13 +15,16 @@
 #ifndef DCTSIZE
 #define DCTSIZE 8
 #endif
-#define COLADDR(col)    ((col) * DCTSIZE)
+#define COLADDR(col) ((col) * DCTSIZE)
 
 // Scaling and helper macros
 #define DCT_SCALE_BITS 7
 #define DCT_SCALE (1U << DCT_SCALE_BITS)
-#define DESCALE(x) (((x) + (1 << (DCT_SCALE_BITS - 1))) >> DCT_SCALE_BITS)
+#define DESCALE(x) (((int32_t)(x) + (1 << (DCT_SCALE_BITS - 1))) >> DCT_SCALE_BITS) // Updated for arithmetic shift
 #define WINOGRAD_QUANT_SCALE_BITS 10
+
+//#define FINAL_SCALE_BITS 13
+//#define DESCALE(x) (((int32_t)(x) + (1 << (FINAL_SCALE_BITS - 1))) >> FINAL_SCALE_BITS)
 
 class jpeg_idct_winograd
 {
@@ -51,6 +54,11 @@ private:
             for (int i = 0; i < DCTSIZE; ++i) {
                 blk[i] = dc;
             }
+            //printf("rowIDCT (DC only): ");
+            //for (int i = 0; i < DCTSIZE; i++) {
+            //    printf("%d ", blk[i]);
+            //}
+            //printf("\n");
             return;
         }
 
@@ -94,13 +102,20 @@ private:
         blk[5] = x42 - tmp3;
         blk[6] = x41 - tmp2;
         blk[7] = x40 - x17;
+
+        // Debug print
+        printf("rowIDCT: ");
+        for (int i = 0; i < DCTSIZE; i++) {
+            printf("%d ", blk[i]);
+        }
+        printf("\n");
     }
 
     void colIDCT(const int* blk, int* out, int stride) {
         int src0, src1, src2, src3, src4, src5, src6, src7;
         int x4, x5, x6, x7, x12, x13, x15, x17, x24, x30, x31, x32;
         int x40, x41, x42, x43, x44, tmp1, tmp2, tmp3, stg26;
-    
+
         // Load column inputs
         src0 = blk[COLADDR(0)];
         src1 = blk[COLADDR(4)];
@@ -110,49 +125,54 @@ private:
         src5 = blk[COLADDR(1)];
         src6 = blk[COLADDR(3)];
         src7 = blk[COLADDR(7)];
-    
+
         // Short-circuit if only DC component is non-zero
         if (!(src1 | src2 | src3 | src4 | src5 | src6 | src7)) {
             int dc = DESCALE(src0 << 3); // Scale DC appropriately
             for (int i = 0; i < DCTSIZE; ++i) {
                 out[i * stride] = dc;
             }
+            //printf("colIDCT (DC only): ");
+            //for (int i = 0; i < DCTSIZE; i++) {
+            //    printf("%d ", out[i * stride]);
+            //}
+            //printf("\n");
             return;
         }
-    
+
         // Stage 1: Compute intermediate values
         x4 = src4 - src7;
         x7 = src4 + src7;
         x5 = src5 + src6;
         x6 = src5 - src6;
-    
+
         // Stage 2: Multiplications
         tmp1 = imul_b5(x4 - x6);
         stg26 = imul_b4(x6) - tmp1;
         x24 = tmp1 - imul_b2(x4);
         x15 = x5 - x7;
         x17 = x5 + x7;
-    
+
         tmp2 = stg26 - x17;
         tmp3 = imul_b1_b3(x15) - tmp2;
         x44 = tmp3 + x24;
-    
+
         // Stage 3: Even coefficients
         x30 = src0 + src1;
         x31 = src0 - src1;
         x12 = src2 - src3;
         x13 = src2 + src3;
-    
+
         x32 = imul_b1_b3(x12) - x13;
-    
+
         // Stage 4: Final combinations
         x40 = x30 + x13;
         x43 = x30 - x13;
         x41 = x31 + x32;
         x42 = x31 - x32;
-    
-        // Output with adjusted scaling (match IFAST scaling)
-        out[0 * stride] = DESCALE(x40 + x17);
+
+        // Output with adjusted scaling to match JPEG range (-128 to 127)
+        out[0 * stride] = DESCALE(x40 + x17);  // Additional shift to normalize
         out[1 * stride] = DESCALE(x41 + tmp2);
         out[2 * stride] = DESCALE(x42 + tmp3);
         out[3 * stride] = DESCALE(x43 - x44);
@@ -160,6 +180,13 @@ private:
         out[5 * stride] = DESCALE(x42 - tmp3);
         out[6 * stride] = DESCALE(x41 - tmp2);
         out[7 * stride] = DESCALE(x40 - x17);
+
+        // Debug print
+        printf("colIDCT: ");
+        for (int i = 0; i < DCTSIZE; i++) {
+            printf("%d ", out[i * stride]);
+        }
+        printf("\n");
     }
 
 public:
@@ -183,6 +210,7 @@ public:
         for (coef = 0; coef < DCTSIZE; ++coef) {
             colIDCT(data_in + coef, data_out + coef, DCTSIZE);
         }
+
     }
 
 private:

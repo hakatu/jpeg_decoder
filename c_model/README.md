@@ -27,5 +27,5 @@ make IDCT=IFAST
 make IDCT=WINOGRAD
 
 # Run
-./jpeg my_image.jpg bitmap.ppm
+./jpeg my_image.jpg bitmap.ppm > your_log.log
 ```

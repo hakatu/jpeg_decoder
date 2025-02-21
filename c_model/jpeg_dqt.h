@@ -48,12 +48,14 @@ public:
     jpeg_dqt() { reset(); }
 
     //-------------------------------------------------------------------------
-    // reset: Reset DQT tables and initialize Winograd quantization
+    // reset: Reset DQT tables and initialize Winograd quantization if needed
     //-------------------------------------------------------------------------
     void reset(void)
     {
         memset(&m_table_dqt[0], 0, 64 * 4);
-        createWinogradQuant(); // Precompute adjusted quantization tables
+#ifdef WINOGRAD
+        createWinogradQuant(); // Only needed for Winograd
+#endif
     }
 
     //-------------------------------------------------------------------------
@@ -75,8 +77,10 @@ public:
             m_table_dqt[table_num][x] = qv;
         }
 
+#ifdef WINOGRAD
         // Update Winograd-adjusted table after loading new DQT
         createWinogradQuant();
+#endif
 
         return buf - data;
     }
@@ -90,28 +94,37 @@ public:
     }
 
     //-------------------------------------------------------------------------
-    // process_samples: Multiply out samples with Winograd-adjusted quantization
-    // and de-zigzag ready for Winograd IDCT
+    // process_samples: Multiply out samples with appropriate quantization
+    // and de-zigzag ready for the selected IDCT
     // samples: (idx, value)
     //-------------------------------------------------------------------------
     void process_samples(int quant_table, int *sample_in, int *block_out, int count)
     {
-        // Apply quantization and zigzag with Winograd scaling
+        // Apply quantization and zigzag
         memset(block_out, 0, sizeof(block_out[0]) * 64);
         for (int i = 0; i < count; i++)
         {
             int16_t smpl = (int16_t)(sample_in[i] & 0xFFFF);
             int block_idx = (sample_in[i] >> 16);
-            int qv = m_table_dqt_winograd[quant_table][block_idx]; // Use Winograd-adjusted table
-            int value = smpl * qv;
-            dprintf("DEQ: %d: %d * %d -> %d @ %d\n", block_idx, smpl, qv, value, m_zigzag_table[block_idx]);
-            block_out[m_zigzag_table[block_idx]] = value;
+
+#ifdef WINOGRAD
+            // Winograd IDCT: Use adjusted quantization table
+            int qv = m_table_dqt_winograd[quant_table][block_idx];
+            //dprintf("DEQ (WINOGRAD): %d: %d * %d -> %d @ %d\n", block_idx, smpl, qv, smpl * qv, m_zigzag_table[block_idx]);
+            block_out[m_zigzag_table[block_idx]] = smpl * qv;
+#else 
+            // Normal or IFAST IDCT: Use original quantization table
+            int qv = lookup(quant_table, block_idx);
+            //dprintf("DEQ (NORMAL/IFAST): %d: %d * %d -> %d @ %d\n", block_idx, smpl, qv, smpl * qv, m_zigzag_table[block_idx]);
+            block_out[m_zigzag_table[block_idx]] = smpl * qv;
+#endif
         }
     }
 
 private:
-    uint8_t m_table_dqt[4][64];           // Original JPEG quantization tables
-    int16_t m_table_dqt_winograd[4][64];  // Winograd-adjusted quantization tables
+    uint8_t  m_table_dqt[4][64];          // Original JPEG quantization tables
+#ifdef WINOGRAD
+    int16_t  m_table_dqt_winograd[4][64]; // Winograd-adjusted quantization tables
 
     //-------------------------------------------------------------------------
     // createWinogradQuant: Adjust quantization tables for Winograd IDCT
@@ -127,6 +140,7 @@ private:
             }
         }
     }
+#endif
 };
 
 #endif

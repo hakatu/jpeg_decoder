@@ -78,6 +78,13 @@ private:
         blk[5] = (t2 - t5) >> 8;
         blk[6] = (t1 - t6) >> 8;
         blk[7] = (t0 - t7) >> 8;
+
+            // Debug print
+            printf("rowIDCT: ");
+            for (int i = 0; i < DCTSIZE; i++) {
+                printf("%d ", blk[i]);
+            }
+            printf("\n");
     }
 
     void colIDCT(const int* blk, int *out, int stride) {
@@ -137,6 +144,13 @@ private:
         *out = (t2 - t5) >> 14;  out += stride;
         *out = (t1 - t6) >> 14;  out += stride;
         *out = (t0 - t7) >> 14;
+
+            // Debug print
+            printf("colIDCT: ");
+            for (int i = 0; i < DCTSIZE; i++) {
+                printf("%d ", out[i * stride]);
+            }
+            printf("\n");
     }
 
 public:
