@@ -23,6 +23,9 @@ make
 # Build with fast inverse discrete cosine transform
 make IDCT=IFAST
 
+# Build with winograd inverse discrete cosine transform
+make IDCT=WINOGRAD
+
 # Run
 ./jpeg my_image.jpg bitmap.ppm
 ```

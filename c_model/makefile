@@ -3,37 +3,41 @@
 ###############################################################################
 
 # Target
-TARGET	   ?= jpeg
+TARGET     ?= jpeg
 
 # Source Files
 SRC_DIR    = .
 
-CFLAGS	    = -O2 -fPIC
-CFLAGS     += -Wno-format
+CFLAGS     = -O2 -fPIC
+CFLAGS    += -Wno-format
 
 INCLUDE_PATH += $(SRC_DIR)
 CFLAGS       += $(patsubst %,-I%,$(INCLUDE_PATH))
 
+# IDCT implementation options
 ifeq ($(IDCT),IFAST)
-CFLAGS       += -DIDCT_IFAST=1
+CFLAGS    += -DIDCT_IFAST=1
+endif
+ifeq ($(IDCT),WINOGRAD)
+CFLAGS    += -DIDCT_WINOGRAD=1
 endif
 
-LDFLAGS     = 
-LIBS        = 
+LDFLAGS    = 
+LIBS       = 
 
 ###############################################################################
 # Variables
 ###############################################################################
-OBJ_DIR      ?= obj/
+OBJ_DIR    ?= obj/
 
 ###############################################################################
 # Variables: Lists of objects, source and deps
 ###############################################################################
 # SRC / Object list
-src2obj       = $(OBJ_DIR)$(patsubst %$(suffix $(1)),%.o,$(notdir $(1)))
+src2obj    = $(OBJ_DIR)$(patsubst %$(suffix $(1)),%.o,$(notdir $(1)))
 
-SRC          ?= $(foreach src,$(SRC_DIR),$(wildcard $(src)/*.cpp))
-OBJ          ?= $(foreach src,$(SRC),$(call src2obj,$(src)))
+SRC       ?= $(foreach src,$(SRC_DIR),$(wildcard $(src)/*.cpp))
+OBJ       ?= $(foreach src,$(SRC),$(call src2obj,$(src)))
 
 ###############################################################################
 # Rules: Compilation macro
@@ -48,7 +52,7 @@ endef
 # Rules
 ###############################################################################
 all: $(TARGET) 
-	
+
 $(OBJ_DIR):
 	@mkdir -p $@
 
