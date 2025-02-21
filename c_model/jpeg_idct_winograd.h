@@ -100,7 +100,7 @@ private:
         int src0, src1, src2, src3, src4, src5, src6, src7;
         int x4, x5, x6, x7, x12, x13, x15, x17, x24, x30, x31, x32;
         int x40, x41, x42, x43, x44, tmp1, tmp2, tmp3, stg26;
-
+    
         // Load column inputs
         src0 = blk[COLADDR(0)];
         src1 = blk[COLADDR(4)];
@@ -110,56 +110,56 @@ private:
         src5 = blk[COLADDR(1)];
         src6 = blk[COLADDR(3)];
         src7 = blk[COLADDR(7)];
-
+    
         // Short-circuit if only DC component is non-zero
         if (!(src1 | src2 | src3 | src4 | src5 | src6 | src7)) {
-            int dc = DESCALE(src0) + 128; // Descaling and offset
+            int dc = DESCALE(src0 << 3); // Scale DC appropriately
             for (int i = 0; i < DCTSIZE; ++i) {
-                out[i * stride] = clamp(dc);
+                out[i * stride] = dc;
             }
             return;
         }
-
+    
         // Stage 1: Compute intermediate values
         x4 = src4 - src7;
         x7 = src4 + src7;
         x5 = src5 + src6;
         x6 = src5 - src6;
-
+    
         // Stage 2: Multiplications
         tmp1 = imul_b5(x4 - x6);
         stg26 = imul_b4(x6) - tmp1;
         x24 = tmp1 - imul_b2(x4);
         x15 = x5 - x7;
         x17 = x5 + x7;
-
+    
         tmp2 = stg26 - x17;
         tmp3 = imul_b1_b3(x15) - tmp2;
         x44 = tmp3 + x24;
-
+    
         // Stage 3: Even coefficients
         x30 = src0 + src1;
         x31 = src0 - src1;
         x12 = src2 - src3;
         x13 = src2 + src3;
-
+    
         x32 = imul_b1_b3(x12) - x13;
-
+    
         // Stage 4: Final combinations
         x40 = x30 + x13;
         x43 = x30 - x13;
         x41 = x31 + x32;
         x42 = x31 - x32;
-
-        // Output with descaling and clamping
-        out[0 * stride] = clamp(DESCALE(x40 + x17) + 128);
-        out[1 * stride] = clamp(DESCALE(x41 + tmp2) + 128);
-        out[2 * stride] = clamp(DESCALE(x42 + tmp3) + 128);
-        out[3 * stride] = clamp(DESCALE(x43 - x44) + 128);
-        out[4 * stride] = clamp(DESCALE(x43 + x44) + 128);
-        out[5 * stride] = clamp(DESCALE(x42 - tmp3) + 128);
-        out[6 * stride] = clamp(DESCALE(x41 - tmp2) + 128);
-        out[7 * stride] = clamp(DESCALE(x40 - x17) + 128);
+    
+        // Output with adjusted scaling (match IFAST scaling)
+        out[0 * stride] = DESCALE(x40 + x17);
+        out[1 * stride] = DESCALE(x41 + tmp2);
+        out[2 * stride] = DESCALE(x42 + tmp3);
+        out[3 * stride] = DESCALE(x43 - x44);
+        out[4 * stride] = DESCALE(x43 + x44);
+        out[5 * stride] = DESCALE(x42 - tmp3);
+        out[6 * stride] = DESCALE(x41 - tmp2);
+        out[7 * stride] = DESCALE(x40 - x17);
     }
 
 public:
