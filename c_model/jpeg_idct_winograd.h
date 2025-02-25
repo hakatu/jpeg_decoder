@@ -7,7 +7,7 @@
 #include <assert.h>
 
 #define DCTSIZE 8
-#define DCT_SCALE_BITS 7
+#define DCT_SCALE_BITS 3
 #define DCT_SCALE (1U << DCT_SCALE_BITS)
 #define DESCALE(x) (((int32_t)(x) + (1 << (DCT_SCALE_BITS - 1))) >> DCT_SCALE_BITS)
 #define WINOGRAD_QUANT_SCALE_BITS 10

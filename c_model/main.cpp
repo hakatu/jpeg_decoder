@@ -157,7 +157,7 @@ static bool DecodeImage(void)
             m_dqt.process_samples(m_dqt_table[0], sample_out, block_out, count);
             dprintf_blk("DCT-IN", block_out, 64);
             m_idct.process(block_out, &y_dct_out[128]);
-
+            
             // Y3
             count = m_mcu_dec.decode(DHT_TABLE_Y_DC_IDX, dc_coeff_Y, sample_out);
             m_dqt.process_samples(m_dqt_table[0], sample_out, block_out, count);

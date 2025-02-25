@@ -24,7 +24,7 @@ static const int m_zigzag_table[] = {
 #define DCTSIZE 8
 #define DCT_SCALE_BITS 7
 #define DCT_SCALE (1U << DCT_SCALE_BITS)
-#define WINOGRAD_QUANT_SCALE_BITS 10
+#define WINOGRAD_QUANT_SCALE_BITS 9
 
 static const uint8_t gWinogradQuant[DCTSIZE * DCTSIZE] = {
     128, 178, 178, 167, 246, 167, 151, 232,
