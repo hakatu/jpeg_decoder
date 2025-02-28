@@ -9,7 +9,7 @@
 #include "jpeg_dht.h"
 #include "jpeg_idct.h"
 #include "jpeg_idct_ifast.h"
-#include "jpeg_idct_winograd.h"  // Added Winograd IDCT header
+#include "jpeg_idct_aan.h"  // Added aan IDCT header
 #include "jpeg_bit_buffer.h"
 #include "jpeg_mcu_block.h"
 
@@ -19,8 +19,8 @@ static jpeg_dht        m_dht;
 // Select IDCT implementation based on Makefile defines
 #if defined(IDCT_IFAST)
 static jpeg_idct_ifast m_idct;
-#elif defined(IDCT_WINOGRAD)
-static jpeg_idct_winograd m_idct;
+#elif defined(IDCT_ANN)
+static jpeg_idct_ann m_idct;
 #else
 static jpeg_idct       m_idct;  // Default fallback (if neither is defined)
 #endif

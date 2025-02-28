@@ -18,8 +18,8 @@ CFLAGS       += $(patsubst %,-I%,$(INCLUDE_PATH))
 ifeq ($(IDCT),IFAST)
 CFLAGS    += -DIDCT_IFAST=1
 endif
-ifeq ($(IDCT),WINOGRAD)
-CFLAGS    += -DIDCT_WINOGRAD=1
+ifeq ($(IDCT),AAN)
+CFLAGS    += -DIDCT_AAN=1
 endif
 
 LDFLAGS    = 
