@@ -1,40 +1,9 @@
-//-----------------------------------------------------------------
-//                      Baseline JPEG Decoder
-//                             V0.1
-//                       Ultra-Embedded.com
-//                        Copyright 2020
-//
-//                   admin@ultra-embedded.com
-//-----------------------------------------------------------------
-//                      License: Apache 2.0
-// This IP can be freely used in commercial projects, however you may
-// want access to unreleased materials such as verification environments,
-// or test vectors, as well as changes to the IP for integration purposes.
-// If this is the case, contact the above address.
-// I am interested to hear how and where this IP is used, so please get
-// in touch!
-//-----------------------------------------------------------------
-// Copyright 2020 Ultra-Embedded.com
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// 
-//     http://www.apache.org/licenses/LICENSE-2.0
-// 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//-----------------------------------------------------------------
-
 module jpeg_idct_ram
 //-----------------------------------------------------------------
 // Params
 //-----------------------------------------------------------------
 #(
-     parameter USE_IDCT_IFAST = 0
+     parameter USE_IDCT = 2'b00  // 00: Normal, 01: IFAST, 10: AAN
 )
 //-----------------------------------------------------------------
 // Ports
@@ -61,8 +30,6 @@ module jpeg_idct_ram
     ,output [  2:0]  outport_idx_o
 );
 
-
-
 reg [1:0]   block_wr_q;
 reg [1:0]   block_rd_q;
 reg [5:0]   rd_idx_q;
@@ -87,12 +54,10 @@ u_ram0
     ,.rst0_i(rst_i)
     ,.clk1_i(clk_i)
     ,.rst1_i(rst_i)
-
     ,.addr0_i(wr_ptr_w)
     ,.data0_i(inport_data_i)
     ,.wr0_i(wr0_w)
     ,.data0_o()
-
     ,.addr1_i({block_rd_q, rd_addr_q})
     ,.data1_i(16'b0)
     ,.wr1_i(1'b0)
@@ -106,12 +71,10 @@ u_ram1
     ,.rst0_i(rst_i)
     ,.clk1_i(clk_i)
     ,.rst1_i(rst_i)
-
     ,.addr0_i(wr_ptr_w)
     ,.data0_i(inport_data_i)
     ,.wr0_i(wr1_w)
     ,.data0_o()
-
     ,.addr1_i({block_rd_q, rd_addr_q})
     ,.data1_i(16'b0)
     ,.wr1_i(1'b0)
@@ -125,12 +88,10 @@ u_ram2
     ,.rst0_i(rst_i)
     ,.clk1_i(clk_i)
     ,.rst1_i(rst_i)
-
     ,.addr0_i(wr_ptr_w)
     ,.data0_i(inport_data_i)
     ,.wr0_i(wr2_w)
     ,.data0_o()
-
     ,.addr1_i({block_rd_q, rd_addr_q})
     ,.data1_i(16'b0)
     ,.wr1_i(1'b0)
@@ -144,12 +105,10 @@ u_ram3
     ,.rst0_i(rst_i)
     ,.clk1_i(clk_i)
     ,.rst1_i(rst_i)
-
     ,.addr0_i(wr_ptr_w)
     ,.data0_i(inport_data_i)
     ,.wr0_i(wr3_w)
     ,.data0_o()
-
     ,.addr1_i({block_rd_q, rd_addr_q})
     ,.data1_i(16'b0)
     ,.wr1_i(1'b0)
@@ -165,10 +124,7 @@ reg [63:0]        data_valid0_q;
 always @ *
 begin
     data_valid0_r = data_valid0_q;
-
-    // End of block read out - reset data valid state
-    if (outport_valid_o && rd_idx_q[5:0] == 6'd63)
-    begin
+    if (outport_valid_o && rd_idx_q[5:0] == 6'd63) begin
         case (block_rd_q)
         2'd0:    data_valid0_r[15:0]  = 16'b0;
         2'd1:    data_valid0_r[31:16] = 16'b0;
@@ -176,7 +132,6 @@ begin
         default: data_valid0_r[63:48] = 16'b0;
         endcase
     end
-
     if (wr0_w)
         data_valid0_r[wr_ptr_w] = 1'b1;
 end
@@ -195,10 +150,7 @@ reg [63:0]        data_valid1_q;
 always @ *
 begin
     data_valid1_r = data_valid1_q;
-
-    // End of block read out - reset data valid state
-    if (outport_valid_o && rd_idx_q[5:0] == 6'd63)
-    begin
+    if (outport_valid_o && rd_idx_q[5:0] == 6'd63) begin
         case (block_rd_q)
         2'd0:    data_valid1_r[15:0]  = 16'b0;
         2'd1:    data_valid1_r[31:16] = 16'b0;
@@ -206,7 +158,6 @@ begin
         default: data_valid1_r[63:48] = 16'b0;
         endcase
     end
-
     if (wr1_w)
         data_valid1_r[wr_ptr_w] = 1'b1;
 end
@@ -225,10 +176,7 @@ reg [63:0]        data_valid2_q;
 always @ *
 begin
     data_valid2_r = data_valid2_q;
-
-    // End of block read out - reset data valid state
-    if (outport_valid_o && rd_idx_q[5:0] == 6'd63)
-    begin
+    if (outport_valid_o && rd_idx_q[5:0] == 6'd63) begin
         case (block_rd_q)
         2'd0:    data_valid2_r[15:0]  = 16'b0;
         2'd1:    data_valid2_r[31:16] = 16'b0;
@@ -236,7 +184,6 @@ begin
         default: data_valid2_r[63:48] = 16'b0;
         endcase
     end
-
     if (wr2_w)
         data_valid2_r[wr_ptr_w] = 1'b1;
 end
@@ -255,10 +202,7 @@ reg [63:0]        data_valid3_q;
 always @ *
 begin
     data_valid3_r = data_valid3_q;
-
-    // End of block read out - reset data valid state
-    if (outport_valid_o && rd_idx_q[5:0] == 6'd63)
-    begin
+    if (outport_valid_o && rd_idx_q[5:0] == 6'd63) begin
         case (block_rd_q)
         2'd0:    data_valid3_r[15:0]  = 16'b0;
         2'd1:    data_valid3_r[31:16] = 16'b0;
@@ -266,7 +210,6 @@ begin
         default: data_valid3_r[63:48] = 16'b0;
         endcase
     end
-
     if (wr3_w)
         data_valid3_r[wr_ptr_w] = 1'b1;
 end
@@ -278,7 +221,6 @@ else if (img_start_i)
     data_valid3_q <= 64'b0;
 else
     data_valid3_q <= data_valid3_r;
-
 
 //-----------------------------------------------------------------
 // Input Buffer
@@ -305,7 +247,6 @@ begin
         block_ready_q[block_wr_q] <= 1'b1;
         block_wr_q                <= block_wr_q + 2'd1;
     end
-
     if (outport_valid_o && rd_idx_q[5:0] == 6'd63)
     begin
         block_ready_q[block_rd_q] <= 1'b0;
@@ -329,7 +270,6 @@ reg [STATE_W-1:0] next_state_r;
 always @ *
 begin
     next_state_r = state_q;
-
     case (state_q)
     STATE_IDLE:
     begin
@@ -347,7 +287,6 @@ begin
     end
     default: ;
     endcase
-
     if (img_start_i)
         next_state_r = STATE_IDLE;
 end
@@ -367,8 +306,7 @@ else if (state_q == STATE_ACTIVE)
     rd_idx_q <= rd_idx_q + 6'd1;
 
 generate
-    if (USE_IDCT_IFAST)
-    begin
+    if (USE_IDCT == 2'b01) begin : gen_ifast
         always @ (posedge clk_i )
         if (rst_i)
             rd_addr_q <= 4'b0;
@@ -390,8 +328,7 @@ generate
             endcase
         end
     end
-    else
-    begin
+    else begin : gen_normal_or_aan
         always @ (posedge clk_i )
         if (rst_i)
             rd_addr_q <= 4'b0;
