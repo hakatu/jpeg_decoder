@@ -35,7 +35,7 @@ module jpeg_core
 //-----------------------------------------------------------------
 #(
      parameter SUPPORT_WRITABLE_DHT = 0,
-     parameter USE_IDCT = 2'b01  // 00: normal, 01: IFAST, 10: AAN
+     parameter USE_IDCT_IFAST = 0
 )
 //-----------------------------------------------------------------
 // Ports
@@ -111,6 +111,7 @@ wire           bb_inport_accept_w;
 wire  [ 31:0]  bb_outport_data_w;
 wire           dqt_cfg_last_w;
 
+
 jpeg_input
 u_jpeg_input
 (
@@ -146,6 +147,7 @@ u_jpeg_input
     ,.data_last_o(bb_inport_last_w)
 );
 
+
 jpeg_dht
 #(
      .SUPPORT_WRITABLE_DHT(SUPPORT_WRITABLE_DHT)
@@ -169,9 +171,10 @@ u_jpeg_dht
     ,.lookup_value_o(lookup_value_w)
 );
 
+
 jpeg_idct
 #(
-    .USE_IDCT(USE_IDCT)
+    .USE_IDCT_IFAST(USE_IDCT_IFAST)
 )
 u_jpeg_idct
 (
@@ -194,6 +197,7 @@ u_jpeg_idct
     ,.outport_idx_o(output_inport_idx_w)
     ,.outport_id_o(output_inport_id_w)
 );
+
 
 jpeg_dqt
 u_jpeg_dqt
@@ -226,6 +230,7 @@ u_jpeg_dqt
     ,.outport_eob_o(idct_inport_eob_w)
 );
 
+
 jpeg_output
 u_jpeg_output
 (
@@ -256,6 +261,7 @@ u_jpeg_output
     ,.idle_o(idle_o)
 );
 
+
 jpeg_bitbuffer
 u_jpeg_bitbuffer
 (
@@ -275,6 +281,7 @@ u_jpeg_bitbuffer
     ,.outport_data_o(bb_outport_data_w)
     ,.outport_last_o(bb_outport_last_w)
 );
+
 
 jpeg_mcu_proc
 u_jpeg_mcu_proc
@@ -306,5 +313,7 @@ u_jpeg_mcu_proc
     ,.outport_id_o(dqt_inport_id_w)
     ,.outport_eob_o(dqt_inport_eob_w)
 );
+
+
 
 endmodule

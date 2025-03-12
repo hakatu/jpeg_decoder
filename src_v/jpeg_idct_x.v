@@ -1,428 +1,192 @@
-//-----------------------------------------------------------------
-//                      Baseline JPEG Decoder
-//                             V0.1
-//                       Ultra-Embedded.com
-//                        Copyright 2020
-//
-//                   admin@ultra-embedded.com
-//-----------------------------------------------------------------
-//                      License: Apache 2.0
-// This IP can be freely used in commercial projects, however you may
-// want access to unreleased materials such as verification environments,
-// or test vectors, as well as changes to the IP for integration purposes.
-// If this is the case, contact the above address.
-// I am interested to hear how and where this IP is used, so please get
-// in touch!
-//-----------------------------------------------------------------
-// Copyright 2020 Ultra-Embedded.com
-// 
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-// 
-//     http://www.apache.org/licenses/LICENSE-2.0
-// 
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-//-----------------------------------------------------------------
-
 module jpeg_idct_x
-//-----------------------------------------------------------------
-// Params
-//-----------------------------------------------------------------
-#(
-     parameter OUT_SHIFT        = 11
-    ,parameter INPUT_WIDTH      = 16
-)
-//-----------------------------------------------------------------
-// Ports
-//-----------------------------------------------------------------
 (
     // Inputs
-     input           clk_i
-    ,input           rst_i
-    ,input           img_start_i
-    ,input           img_end_i
-    ,input           inport_valid_i
-    ,input  [ 15:0]  inport_data0_i
-    ,input  [ 15:0]  inport_data1_i
-    ,input  [ 15:0]  inport_data2_i
-    ,input  [ 15:0]  inport_data3_i
-    ,input  [  2:0]  inport_idx_i
+    input           clk_i,          // Clock input
+    input           rst_i,          // Reset input (active high)
+    input           img_start_i,    // Start of image signal (unused in this implementation)
+    input           img_end_i,      // End of image signal (unused in this implementation)
+    input           inport_valid_i, // Input data valid signal
+    input  [15:0]   inport_data0_i, // First input coefficient
+    input  [15:0]   inport_data1_i, // Second input coefficient
+    input  [15:0]   inport_data2_i, // Third input coefficient
+    input  [15:0]   inport_data3_i, // Fourth input coefficient
+    input  [2:0]    inport_idx_i,   // Row index for input data
 
     // Outputs
-    ,output          outport_valid_o
-    ,output [ 31:0]  outport_data_o
-    ,output [  5:0]  outport_idx_o
+    output reg      outport_valid_o, // Output data valid signal
+    output reg [31:0] outport_data_o, // Output transformed value
+    output reg [5:0]  outport_idx_o   // Output index (row + column)
 );
 
+// ### Constants for AAN Algorithm
+// These are fixed-point coefficients scaled by 2^13
+localparam signed [13:0] FIX_0_707106781 = 5793;  // sqrt(2)/2
+localparam signed [13:0] FIX_0_382683433 = 3135;  // cos(6π/16)
+localparam signed [13:0] FIX_0_541196100 = 4433;  // cos(4π/16 + π/4)
+localparam signed [13:0] FIX_1_306562965 = 10703; // cos(4π/16 - π/4)
+localparam signed [13:0] FIX_1_847759065 = 15137; // cos(π/8)
 
+// ### State Machine States
+localparam STATE_IDLE     = 3'd0, // Waiting for input
+           STATE_COLLECT1 = 3'd1, // Collecting first half of coefficients
+           STATE_COLLECT2 = 3'd2, // Collecting second half of coefficients
+           STATE_COMPUTE  = 3'd3, // Computing IDCT
+           STATE_OUTPUT   = 3'd4; // Outputting results
 
+// ### Registers
+reg [2:0]  state;                // Current state
+reg [15:0] coef [0:7];           // Array to store 8 input coefficients (16-bit each)
+reg [31:0] output_values [0:7];  // Array to store 8 output values (32-bit each)
+reg [2:0]  row_idx;              // Current row index
+reg [2:0]  output_count;         // Counter for outputting values
 
-localparam [15:0] C1_16 = 4017; // cos( pi/16) x4096
-localparam [15:0] C2_16 = 3784; // cos(2pi/16) x4096
-localparam [15:0] C3_16 = 3406; // cos(3pi/16) x4096
-localparam [15:0] C4_16 = 2896; // cos(4pi/16) x4096
-localparam [15:0] C5_16 = 2276; // cos(5pi/16) x4096
-localparam [15:0] C6_16 = 1567; // cos(6pi/16) x4096
-localparam [15:0] C7_16 = 799;  // cos(7pi/16) x4096
-
-wire signed [31:0] block_in_0_1 = {{16{inport_data0_i[15]}}, inport_data0_i};
-wire signed [31:0] block_in_2_3 = {{16{inport_data1_i[15]}}, inport_data1_i};
-wire signed [31:0] block_in_4_5 = {{16{inport_data2_i[15]}}, inport_data2_i};
-wire signed [31:0] block_in_6_7 = {{16{inport_data3_i[15]}}, inport_data3_i};
-
-//-----------------------------------------------------------------
-// IDCT
-//-----------------------------------------------------------------
-reg signed [31:0] i0;
-reg signed [31:0] mul0_a;
-reg signed [31:0] mul0_b;
-reg signed [31:0] mul1_a;
-reg signed [31:0] mul1_b;
-reg signed [31:0] mul2_a;
-reg signed [31:0] mul2_b;
-reg signed [31:0] mul3_a;
-reg signed [31:0] mul3_b;
-reg signed [31:0] mul4_a;
-reg signed [31:0] mul4_b;
-
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    i0     <= 32'b0;
-    mul0_a <= 32'b0;
-    mul0_b <= 32'b0;
-    mul1_a <= 32'b0;
-    mul1_b <= 32'b0;
-    mul2_a <= 32'b0;
-    mul2_b <= 32'b0;
-    mul3_a <= 32'b0;
-    mul3_b <= 32'b0;
-    mul4_a <= 32'b0;
-    mul4_b <= 32'b0;
-end
-else
-begin
-    /* verilator lint_off WIDTH */
-    case (inport_idx_i)
-    3'd0:
-    begin
-        i0     <= block_in_0_1 + block_in_4_5;
-        mul0_a <= block_in_2_3;
-        mul0_b <= C2_16;
-        mul1_a <= block_in_6_7;
-        mul1_b <= C6_16;
+// ### Input Scaling
+// Scale 16-bit coefficients to 32-bit by sign-extending and shifting left by 11
+wire signed [31:0] tmp_in [0:7];
+genvar i;
+generate
+    for (i = 0; i < 8; i = i + 1) begin : gen_tmp_in
+        assign tmp_in[i] = {{5{coef[i][15]}}, coef[i], 11'd0}; // Sign-extend and shift
     end
-    3'd1:
-    begin
-        mul0_a <= block_in_0_1;
-        mul0_b <= C1_16;
-        mul1_a <= block_in_6_7;
-        mul1_b <= C7_16;
-        mul2_a <= block_in_4_5;
-        mul2_b <= C5_16;
-        mul3_a <= block_in_2_3;
-        mul3_b <= C3_16;
-        mul4_a <= i0;
-        mul4_b <= C4_16;
-    end
-    3'd2:
-    begin
-        i0     <= block_in_0_1 - block_in_4_5;
-    end
-    3'd3:
-    begin
-        mul0_a <= block_in_0_1;
-        mul0_b <= C7_16;
-        mul1_a <= block_in_6_7;
-        mul1_b <= C1_16;
-        mul2_a <= block_in_4_5;
-        mul2_b <= C3_16;
-        mul3_a <= block_in_2_3;
-        mul3_b <= C5_16;
-    end
-    3'd4:
-    begin
-        mul0_a <= block_in_0_1;
-        mul0_b <= C7_16;
-        mul1_a <= block_in_6_7;
-        mul1_b <= C1_16;
-        mul2_a <= block_in_4_5;
-        mul2_b <= C3_16;
-        mul3_a <= block_in_2_3;
-        mul3_b <= C5_16;
-    end
-    3'd5:
-    begin
-        mul0_a <= block_in_2_3;
-        mul0_b <= C6_16;
-        mul1_a <= block_in_6_7;
-        mul1_b <= C2_16;
-        mul4_a <= i0;
-        mul4_b <= C4_16;
-    end
-    default:
-        ;
-    endcase
-    /* verilator lint_on WIDTH */
-end
+endgenerate
 
-reg signed [31:0] mul0_q;
-reg signed [31:0] mul1_q;
-reg signed [31:0] mul2_q;
-reg signed [31:0] mul3_q;
-reg signed [31:0] mul4_q;
+// ### Even Part Computations
+wire signed [31:0] z1_e = tmp_in[0] + tmp_in[4];
+wire signed [31:0] z2_e = tmp_in[0] - tmp_in[4];
+wire signed [31:0] z3_e = tmp_in[2] + tmp_in[6];
+wire signed [31:0] z4_e = tmp_in[2] - tmp_in[6];
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    mul0_q <= 32'b0;
-    mul1_q <= 32'b0;
-    mul2_q <= 32'b0;
-    mul3_q <= 32'b0;
-    mul4_q <= 32'b0;
-end
-else
-begin
-    mul0_q <= mul0_a * mul0_b;
-    mul1_q <= mul1_a * mul1_b;
-    mul2_q <= mul2_a * mul2_b;
-    mul3_q <= mul3_a * mul3_b;
-    mul4_q <= mul4_a * mul4_b;
-end
+wire signed [31:0] tmp0_e = z1_e + z3_e;
+wire signed [31:0] tmp2_e = z1_e - z3_e;
 
-reg signed [31:0] mul0;
-reg signed [31:0] mul1;
-reg signed [31:0] mul2;
-reg signed [31:0] mul3;
-reg signed [31:0] mul4;
+// Multiplication and shifting for even part
+wire signed [45:0] mult0_e = z4_e * FIX_0_707106781;         // 32-bit * 14-bit = 46-bit
+wire signed [45:0] shifted_mult0_e = mult0_e >>> 13;         // Shift right by 13
+wire signed [31:0] shifted_mult0_e_32 = shifted_mult0_e[31:0]; // Extract lower 32 bits
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    mul0 <= 32'b0;
-    mul1 <= 32'b0;
-    mul2 <= 32'b0;
-    mul3 <= 32'b0;
-    mul4 <= 32'b0;
-end
-else
-begin
-    mul0 <= mul0_q;
-    mul1 <= mul1_q;
-    mul2 <= mul2_q;
-    mul3 <= mul3_q;
-    mul4 <= mul4_q;
-end
+wire signed [31:0] tmp1_e = z2_e + shifted_mult0_e_32;
+wire signed [31:0] tmp3_e = z2_e - shifted_mult0_e_32;
 
-reg        out_stg0_valid_q;
-reg [2:0]  out_stg0_idx_q;
+// ### Odd Part Computations
+wire signed [31:0] z1_o = tmp_in[1] + tmp_in[7];
+wire signed [31:0] z2_o = tmp_in[3] + tmp_in[5];
+wire signed [31:0] z3_o = tmp_in[1] + tmp_in[5];
+wire signed [31:0] z4_o = tmp_in[3] + tmp_in[7];
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    out_stg0_valid_q <= 1'b0;
-    out_stg0_idx_q   <= 3'b0;
-end
-else
-begin
-    out_stg0_valid_q <= inport_valid_i;
-    out_stg0_idx_q   <= inport_idx_i;
-end
+// Sign-extend z3_o and z4_o to 46 bits for consistent multiplication
+wire signed [45:0] z3_o_ext = {{14{z3_o[31]}}, z3_o};
+wire signed [45:0] z4_o_ext = {{14{z4_o[31]}}, z4_o};
 
-reg        out_stg1_valid_q;
-reg [2:0]  out_stg1_idx_q;
+// Multiplications for odd part
+wire signed [45:0] mult1_o = (z3_o_ext - z4_o_ext) * FIX_1_847759065;
+wire signed [45:0] mult2_o = z1_o * FIX_0_541196100;
+wire signed [45:0] mult3_o = z2_o * FIX_1_306562965;
+wire signed [45:0] mult4_o = (z3_o_ext + z4_o_ext) * FIX_0_382683433;
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    out_stg1_valid_q <= 1'b0;
-    out_stg1_idx_q   <= 3'b0;
-end
-else
-begin
-    out_stg1_valid_q <= out_stg0_valid_q;
-    out_stg1_idx_q   <= out_stg0_idx_q;
-end
+// Shifted multiplication results
+wire signed [45:0] shifted_mult1_o = mult1_o >>> 13;
+wire signed [45:0] shifted_mult2_o = mult2_o >>> 13;
+wire signed [45:0] shifted_mult3_o = mult3_o >>> 13;
+wire signed [45:0] shifted_mult4_o = mult4_o >>> 13;
 
-reg        out_stg2_valid_q;
-reg [2:0]  out_stg2_idx_q;
+// Extract lower 32 bits
+wire signed [31:0] shifted_mult1_o_32 = shifted_mult1_o[31:0];
+wire signed [31:0] shifted_mult2_o_32 = shifted_mult2_o[31:0];
+wire signed [31:0] shifted_mult3_o_32 = shifted_mult3_o[31:0];
+wire signed [31:0] shifted_mult4_o_32 = shifted_mult4_o[31:0];
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    out_stg2_valid_q <= 1'b0;
-    out_stg2_idx_q   <= 3'b0;
-end
-else
-begin
-    out_stg2_valid_q <= out_stg1_valid_q;
-    out_stg2_idx_q   <= out_stg1_idx_q;
-end
+// Compute z5_o for odd part
+wire signed [31:0] z5_o = shifted_mult1_o_32;
 
-reg signed [31:0] o_s5;
-reg signed [31:0] o_s6;
-reg signed [31:0] o_s7;
-reg signed [31:0] o_t0;
-reg signed [31:0] o_t1;
-reg signed [31:0] o_t2;
-reg signed [31:0] o_t3;
-reg signed [31:0] o_t4;
-reg signed [31:0] o_t5;
-reg signed [31:0] o_t6;
-reg signed [31:0] o_t7;
-reg signed [31:0] o_t6_5;
-reg signed [31:0] o_t5_6;
+// Compute temporary values for odd part
+wire signed [31:0] tmp7_o = z1_o + z2_o;
+wire signed [31:0] tmp6_o = shifted_mult2_o_32 + z5_o;
+wire signed [31:0] tmp5_o = shifted_mult3_o_32 - z5_o;
+wire signed [31:0] tmp4_o = shifted_mult4_o_32;
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    o_s5   <= 32'b0;
-    o_s6   <= 32'b0;
-    o_s7   <= 32'b0;
-    o_t0   <= 32'b0;
-    o_t1   <= 32'b0;
-    o_t2   <= 32'b0;
-    o_t3   <= 32'b0;
-    o_t4   <= 32'b0;
-    o_t5   <= 32'b0;
-    o_t6   <= 32'b0;
-    o_t7   <= 32'b0;
-    o_t6_5 <= 32'b0;
-    o_t5_6 <= 32'b0;
-end
-else
-begin
-    case (out_stg2_idx_q)
-    3'd0:
-    begin
-        o_t3 <= mul0 + mul1; // s3
-    end
-    3'd1:
-    begin
-        o_s7 <= mul0 + mul1;
-        o_s6 <= mul2 + mul3;
-        o_t0 <= mul4;        // s0
-    end
-    3'd2:
-    begin
-        o_t0 <= o_t0 + o_t3; // t0
-        o_t3 <= o_t0 - o_t3; // t3
-        o_t7 <= o_s6 + o_s7;
-    end
-    3'd3:
-    begin
-        o_t4 <= (mul0 - mul1) + (mul2 - mul3);
-    end
-    3'd4:
-    begin
-        o_t0 <= mul0 - mul1; // s4
-        o_s5 <= mul2 - mul3;    
-    end
-    3'd5:
-    begin
-        o_t3 <= mul0 - mul1; // s2
-        o_t4 <= mul4; // s1
-        o_t5 <= o_t0 - o_s5;
-        o_t6 <= o_s7 - o_s6;
-    end
-    3'd6:
-    begin
-        o_t1 <= o_t4 + o_t3;
-        o_t2 <= o_t4 - o_t3;
-        o_t6_5 <= o_t6 - o_t5;
-        o_t5_6 <= o_t5 + o_t6;
-    end
-    default:
-    begin
-        o_s5 <= (o_t6_5 * 181) / 256; // 1/sqrt(2)
-        o_s6 <= (o_t5_6 * 181) / 256; // 1/sqrt(2)
-    end
-    endcase
-end
+// ### Final Output Computations
+// Combine even and odd parts, shift right by 8 for final scaling
+wire signed [31:0] out0 = (tmp0_e + tmp7_o) >>> 8;
+wire signed [31:0] out1 = (tmp1_e + tmp6_o) >>> 8;
+wire signed [31:0] out2 = (tmp2_e + tmp5_o) >>> 8;
+wire signed [31:0] out3 = (tmp3_e + tmp4_o) >>> 8;
+wire signed [31:0] out4 = (tmp3_e - tmp4_o) >>> 8;
+wire signed [31:0] out5 = (tmp2_e - tmp5_o) >>> 8;
+wire signed [31:0] out6 = (tmp1_e - tmp6_o) >>> 8;
+wire signed [31:0] out7 = (tmp0_e - tmp7_o) >>> 8;
 
-reg        out_stg3_valid_q;
-reg [2:0]  out_stg3_idx_q;
+// ### Sequential Logic (State Machine)
+always @(posedge clk_i) begin
+    if (rst_i) begin
+        // Reset state
+        state <= STATE_IDLE;
+        outport_valid_o <= 1'b0;
+        outport_data_o <= 32'd0;
+        outport_idx_o <= 6'd0;
+        output_count <= 3'd0;
+    end else begin
+        case (state)
+            STATE_IDLE: begin
+                outport_valid_o <= 1'b0;
+                if (inport_valid_i) begin
+                    // Collect first 4 coefficients
+                    coef[0] <= inport_data0_i;
+                    coef[1] <= inport_data1_i;
+                    coef[2] <= inport_data2_i;
+                    coef[3] <= inport_data3_i;
+                    row_idx <= inport_idx_i;
+                    state <= STATE_COLLECT2;
+                end
+            end
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    out_stg3_valid_q <= 1'b0;
-    out_stg3_idx_q   <= 3'b0;
-end
-else
-begin
-    out_stg3_valid_q <= out_stg2_valid_q;
-    out_stg3_idx_q   <= out_stg2_idx_q;
-end
+            STATE_COLLECT2: begin
+                if (inport_valid_i && inport_idx_i == row_idx) begin
+                    // Collect last 4 coefficients
+                    coef[4] <= inport_data0_i;
+                    coef[5] <= inport_data1_i;
+                    coef[6] <= inport_data2_i;
+                    coef[7] <= inport_data3_i;
+                    state <= STATE_COMPUTE;
+                end
+            end
 
-reg signed [31:0] block_out[0:7];
-reg signed [31:0] block_out_tmp;
+            STATE_COMPUTE: begin
+                // Store computed outputs
+                output_values[0] <= out0;
+                output_values[1] <= out1;
+                output_values[2] <= out2;
+                output_values[3] <= out3;
+                output_values[4] <= out4;
+                output_values[5] <= out5;
+                output_values[6] <= out6;
+                output_values[7] <= out7;
+                output_count <= 3'd0;
+                state <= STATE_OUTPUT;
+            end
 
-always @ (posedge clk_i )
-if (rst_i)
-begin
-    block_out[0] <= 32'b0;
-    block_out[1] <= 32'b0;
-    block_out[2] <= 32'b0;
-    block_out[3] <= 32'b0;
-    block_out[4] <= 32'b0;
-    block_out[5] <= 32'b0;
-    block_out[6] <= 32'b0;
-    block_out[7] <= 32'b0;
-    block_out_tmp <= 32'b0;
-end
-else if (out_stg3_valid_q)
-begin
-    if (out_stg3_idx_q == 3'd3)
-    begin
-        block_out[0] <= ((o_t0 + o_t7) >>> OUT_SHIFT);
-        block_out_tmp <= ((o_t0 - o_t7) >>> OUT_SHIFT); // block_out[7]
-        block_out[3] <= ((o_t3 + o_t4) >>> OUT_SHIFT);
-        block_out[4] <= ((o_t3 - o_t4) >>> OUT_SHIFT);
-    end
+            STATE_OUTPUT: begin
+                // Output one value per cycle
+                outport_valid_o <= 1'b1;
+                outport_data_o <= output_values[output_count];
+                outport_idx_o <= {row_idx, output_count}; // 6-bit index: [row_idx, column_idx]
+                if (output_count < 7) begin
+                    output_count <= output_count + 1;
+                end else begin
+                    outport_valid_o <= 1'b0;
+                    state <= STATE_IDLE;
+                end
+            end
 
-    if (out_stg3_idx_q == 3'd6)
-        block_out[7] <= block_out_tmp;
-
-    if (out_stg3_idx_q == 3'd7)
-    begin
-        block_out[2] <= ((o_t2 + o_s5) >>> OUT_SHIFT);
-        block_out[5] <= ((o_t2 - o_s5) >>> OUT_SHIFT);
-        block_out[1] <= ((o_t1 + o_s6) >>> OUT_SHIFT);
-        block_out[6] <= ((o_t1 - o_s6) >>> OUT_SHIFT);
+            default: state <= STATE_IDLE;
+        endcase
     end
 end
 
-reg [7:0] valid_q;
+//State machine debug
 
-always @ (posedge clk_i )
-if (rst_i)
-    valid_q  <= 8'b0;
-else if (img_start_i)
-    valid_q  <= 8'b0;
-else
-    valid_q <= {valid_q[6:0], out_stg3_valid_q};
-
-reg [5:0] ptr_q;
-
-always @ (posedge clk_i )
-if (rst_i)
-    ptr_q <= 6'd0;
-else if (img_start_i)
-    ptr_q <= 6'd0;
-else if (outport_valid_o)
-    ptr_q <= ptr_q + 6'd1;
-
-assign outport_valid_o = valid_q[6];
-assign outport_data_o  = block_out[ptr_q[2:0]];
-
-assign outport_idx_o   = ptr_q;
-
-
+//always @(posedge clk_i) begin
+//    $display("Time: %t, State_y: %d, rst_i: %b, inport_valid_i: %b, inport_idx_i: %d, col_idx: %d",
+//             $time, state, rst_i, inport_valid_i, inport_idx_i, row_idx);
+//end
 
 endmodule

@@ -12,4 +12,6 @@ add_executable(jpeg_decode ./sim_main.cpp)
 # Add the Verilated circuit to the target
 verilate(jpeg_decode TRACE
   INCLUDE_DIRS "../src_v"
-  SOURCES ../src_v/jpeg_core.v)
+  SOURCES ../src_v/jpeg_core.v
+  # VERILATOR_ARGS -Wno-fatal -O3 -CFLAGS -O3 -LDFLAGS -O3
+  )

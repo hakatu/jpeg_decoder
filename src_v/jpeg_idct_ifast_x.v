@@ -326,4 +326,10 @@ assign outport_data_o  = block_out[ptr_q[2:0]];
 
 assign outport_idx_o   = ptr_q;
 
+// Debug
+//always @(posedge clk_i) begin
+//    $display("Time: %t, rst_i: %b, inport_valid_i: %b, inport_idx_i: %d",
+//             $time, rst_i, inport_valid_i, inport_idx_i);
+//end
+
 endmodule

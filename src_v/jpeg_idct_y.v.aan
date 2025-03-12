@@ -234,10 +234,11 @@ endfunction
 
 assign outport_idx_o = ptr_conv(ptr_q);
 
-//State machine debug
+//State machine debug 
+/*
 always @(posedge clk_i) begin
     $display("Time: %t, State_y: %d, rst_i: %b, inport_valid_i: %b, inport_idx_i: %d, col_idx: %d",
              $time, state, rst_i, inport_valid_i, inport_idx_i, col_idx);
 end
-
+*/
 endmodule

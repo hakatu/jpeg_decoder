@@ -12,6 +12,8 @@
 #include <cstdio>
 #include <verilated.h>
 
+#define VM_TRACE 1
+
 // Include model header, generated from Verilating "jpeg_core.v"
 #include "Vjpeg_core.h"
 
@@ -28,7 +30,7 @@ double sc_time_stamp () {	// Called by $time in Verilog
 int main(int argc, char** argv) {
 
     if (argc < 3) {
-        std::cerr << "Should specify jpeg file and output ppm file path" << std::endl;
+        std::cerr << "Should specify jpeg file and output bmp file path" << std::endl;
         std::cerr << argv[0] << " <jpeg_file> <ppm_file> [verilator_options]" << std::endl;
         exit(1);
     }
